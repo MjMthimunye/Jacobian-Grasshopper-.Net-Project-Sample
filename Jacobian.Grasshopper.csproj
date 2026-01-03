@@ -1,0 +1,129 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<AssemblyName>Jacobian.Grasshopper</AssemblyName>
+		<RootNamespace>Jacobian.Grasshopper</RootNamespace>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<Configurations>GH7;GH8;Release-GH7;Release-GH8;</Configurations>
+		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+		<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+		<GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<UseWindowsForms>true</UseWindowsForms>
+		<TargetExt>.gha</TargetExt>
+	</PropertyGroup>
+
+	<!-- Rhino 7 / GH7 -->
+	<PropertyGroup Condition="'$(Configuration)'=='GH7'">
+		<TargetFramework>net48-windows</TargetFramework>
+		<LangVersion>10</LangVersion>
+		<OutputPath>bin\GH7\</OutputPath>
+		<GHVersion>7.37.24107.15001</GHVersion> 
+		<GHSubFolder>JacobianGH7</GHSubFolder>
+		<StartAction>Program</StartAction>
+		<StartProgram>C:\Program Files\Rhino 7\System\Rhino.exe</StartProgram>
+		<StartArguments>/nosplash</StartArguments>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)'=='Release-GH7'">
+	  <TargetFramework>net48-windows</TargetFramework>
+	  <LangVersion>10</LangVersion>
+	  <OutputPath>bin\GH7\</OutputPath>
+	  <GHVersion>7.37.24107.15001</GHVersion>
+	  <GHSubFolder>JacobianGH7</GHSubFolder>
+	  <StartAction>Program</StartAction>
+	  <StartProgram>C:\Program Files\Rhino 7\System\Rhino.exe</StartProgram>
+	  <StartArguments>/nosplash</StartArguments>
+	</PropertyGroup>
+
+	<!-- Rhino 8 / GH8 -->
+	<PropertyGroup Condition="'$(Configuration)'=='GH8'">
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<LangVersion>10</LangVersion>
+		<OutputPath>bin\GH8\</OutputPath>
+		<!-- Optional: pin a specific GH/RhinoCommon version here if needed.
+         If left empty, the project will default to 8.* (floating). -->
+		<GHVersion>8.21.25188.17001</GHVersion> 
+		<GHSubFolder>JacobianGH8</GHSubFolder>
+		<StartAction>Program</StartAction>
+		<StartProgram>C:\Program Files\Rhino 8\System\Rhino.exe</StartProgram>
+		<StartArguments>/nosplash</StartArguments>
+	</PropertyGroup>
+
+	<!-- Default floating-version mapping -->
+	<PropertyGroup>
+		<DefaultGHVersion Condition="'$(Configuration)'=='GH7'">7.*</DefaultGHVersion>
+		<DefaultGHVersion Condition="'$(Configuration)'=='Release-GH7'">7.*</DefaultGHVersion>
+		<DefaultGHVersion Condition="'$(Configuration)'=='GH8'">8.*</DefaultGHVersion>
+	</PropertyGroup>
+
+	<!-- Resolved version: if GHVersion is set (explicit) use it, otherwise use the DefaultGHVersion -->
+	<PropertyGroup>
+		<ResolvedGHVersion Condition="'$(GHVersion)' == ''">$(DefaultGHVersion)</ResolvedGHVersion>
+		<ResolvedGHVersion Condition="'$(GHVersion)' != ''">$(GHVersion)</ResolvedGHVersion>
+	</PropertyGroup>
+
+	<!-- Package references only when a ResolvedGHVersion exists -->
+	<ItemGroup Condition="'$(ResolvedGHVersion)' != ''">
+		<PackageReference Include="Grasshopper" Version="$(ResolvedGHVersion)" />
+		<PackageReference Include="RhinoCommon" Version="$(ResolvedGHVersion)" />
+	</ItemGroup>
+
+	<!-- Embedded resources -->
+	<ItemGroup>
+		<Compile Update="Resources.Designer.cs">
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Resources.resx</DependentUpon>
+		</Compile>
+		<EmbeddedResource Update="Resources.resx">
+			<Generator>ResXFileCodeGenerator</Generator>
+			<LastGenOutput>Resources.Designer.cs</LastGenOutput>
+		</EmbeddedResource>
+	</ItemGroup>
+
+	<!-- Install target -->
+	<Target Name="InstallGrasshopperPlugin" AfterTargets="Build">
+		<PropertyGroup>
+			<!-- Detect Grasshopper Libraries folder (Windows only) -->
+			<GrasshopperLibrariesFolder Condition="$([MSBuild]::IsOSPlatform(windows)) and Exists('$(APPDATA)\Grasshopper\Libraries')">$(APPDATA)\Grasshopper\Libraries</GrasshopperLibrariesFolder>
+			<GrasshopperLibrariesFolder>$(GrasshopperLibrariesFolder)\$(GHSubFolder)</GrasshopperLibrariesFolder>
+		</PropertyGroup>
+
+		<Message Text="Resolved GrasshopperLibrariesFolder=$(GrasshopperLibrariesFolder)" Importance="high" />
+
+		<MakeDir Directories="$(GrasshopperLibrariesFolder)" Condition="'$(GrasshopperLibrariesFolder)' != ''" />
+
+		<Copy SourceFiles="$(TargetDir)$(TargetName).gha" DestinationFolder="$(GrasshopperLibrariesFolder)" Condition="'$(GrasshopperLibrariesFolder)' != '' and Exists('$(TargetDir)$(TargetName).gha')" />
+		<Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFiles="$(GrasshopperLibrariesFolder)\$(TargetName).gha.pdb" Condition="'$(GrasshopperLibrariesFolder)' != '' and Exists('$(TargetDir)$(TargetName).pdb')" />
+
+		<Message Text="Installed $(TargetName).gha into $(GrasshopperLibrariesFolder)" Condition="'$(GrasshopperLibrariesFolder)' != ''" />
+		<Warning Text="Could not find Grasshopper Libraries folder" Condition="'$(GrasshopperLibrariesFolder)' == ''" />
+	</Target>
+
+	<!-- Yak package target -->
+	<Target Name="BuildYakPackage" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+		<PropertyGroup>
+			<!-- Default Yak location (can override with /p:YakExecutable=...) -->
+			<YakExecutable Condition="$(YakExecutable) == '' and $([MSBuild]::IsOSPlatform(windows)) and Exists('C:\Program Files\Rhino 8\System\Yak.exe')">C:\Program Files\Rhino 8\System\Yak.exe</YakExecutable>
+			<YakExecutable Condition="$(YakExecutable) == '' and $([MSBuild]::IsOSPlatform(macos)) and Exists('/Applications/Rhino 8.app/Contents/Resources/bin/yak')">/Applications/Rhino 8.app/Contents/Resources/bin/yak</YakExecutable>
+			<BuildYakPackage Condition="$(BuildYakPackage) == '' and $(YakExecutable) != '' and Exists($(YakExecutable))">True</BuildYakPackage>
+		</PropertyGroup>
+
+		<Message Text="YakExecutable=$(YakExecutable)" Importance="high" Condition="'$(YakExecutable)' != ''" />
+		<Warning Text="Could not find Yak executable" Condition="$(YakExecutable) == ''" />
+
+		<ItemGroup>
+			<YakPackagesToDelete Include="$(OutputPath)\*.yak;$(OutputPath)\**\manifest.yml" />
+		</ItemGroup>
+
+		<Delete Files="@(YakPackagesToDelete)" Condition="'@(YakPackagesToDelete)' != ''" />
+
+		<Exec Command="&quot;$(YakExecutable)&quot; spec" WorkingDirectory="$(OutputPath)" Condition="$(BuildYakPackage) == 'True'" />
+		<Exec Command="&quot;$(YakExecutable)&quot; build" WorkingDirectory="$(OutputPath)" Condition="$(BuildYakPackage) == 'True'" />
+
+		<Message Text="Yak package built in $(OutputPath)" Condition="$(BuildYakPackage) == 'True'" Importance="high" />
+	</Target>
+
+</Project>

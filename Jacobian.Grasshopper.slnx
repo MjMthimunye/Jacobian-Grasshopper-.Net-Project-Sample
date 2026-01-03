@@ -1,0 +1,11 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="GH7" />
+    <BuildType Name="GH8" />
+    <BuildType Name="Release-GH7" />
+    <BuildType Name="Release-GH8" />
+  </Configurations>
+  <Project Path="Jacobian.Grasshopper.csproj">
+    <BuildType Solution="Release-GH8|*" Project="GH8" />
+  </Project>
+</Solution>
